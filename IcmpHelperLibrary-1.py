@@ -207,9 +207,29 @@ class IcmpHelperLibrary:
             self.__packHeader()                 # Header is rebuilt to include new checksum value
 
         def __validateIcmpReplyPacketWithOriginalPingData(self, icmpReplyPacket):
-            # Hint: Work through comparing each value and identify if this is a valid response.
-            icmpReplyPacket.setIsValidResponse(True)
-            pass
+
+            # confirm sequence number
+            seq_num, reply_seq_num = self.getPacketSequenceNumber(), icmpReplyPacket.getIcmpSequenceNumber()
+            if seq_num == reply_seq_num:
+                icmpReplyPacket.setIcmpSequenceNumber_isValid(True)
+            print(f"Sent packet sequence number: {seq_num}. recieved packet sequence number {reply_seq_num}.") if self.__DEBUG_IcmpHelperLibrary else 0
+            
+            # confirm packet identifier
+            id, reply_id = self.getPacketIdentifier(), icmpReplyPacket.getIcmpIdentifier()
+            if id == reply_id:
+                icmpReplyPacket.setIcmpIdentifier_isValid(True)
+            print(f"Sent packet identifier: {id}. recieved packet identifier {reply_id}.") if self.__DEBUG_IcmpHelperLibrary else 0
+
+            # confirm raw data
+            raw_data, reply_raw_data = self.getDataRaw(), icmpReplyPacket.getIcmpData()
+            if self.getDataRaw() == icmpReplyPacket.getIcmpData():
+                icmpReplyPacket.setIcmpData_isValid(True)
+            print(f"Sent packet raw data: {raw_data}. recieved packet raw data{reply_raw_data}.") if self.__DEBUG_IcmpHelperLibrary else 0
+
+            # set the validity of the reply packet
+            if icmpReplyPacket.getIcmpSequenceNumber_isValid() & icmpReplyPacket.getIcmpIdentifier_isValid() & icmpReplyPacket.getIcmpData_isValid(): 
+                icmpReplyPacket.setIsValidResponse(True)
+            print(f"Icmp reply packet is valid: {icmpReplyPacket.isValidResponse()}") if self.__DEBUG_IcmpHelperLibrary else 0
 
         # ############################################################################################################ #
         # IcmpPacket Class Public Functions                                                                            #
@@ -334,6 +354,7 @@ class IcmpHelperLibrary:
         __recvPacket = b''
         __isValidResponse = False
 
+        # variables that identify whether each value that can be obtained from the class is valid
         # ############################################################################################################ #
         # IcmpPacket_EchoReply Constructors                                                                            #
         #                                                                                                              #
@@ -343,6 +364,11 @@ class IcmpHelperLibrary:
         # ############################################################################################################ #
         def __init__(self, recvPacket):
             self.__recvPacket = recvPacket
+
+            # variables that identify whether each value that can be obtained from the class is valid
+            self._icmpSequenceNumber_isValid = False
+            self._icmpIdentifier_isValid = False
+            self._icmpData_isValid = False
 
         # ############################################################################################################ #
         # IcmpPacket_EchoReply Getters                                                                                 #
@@ -402,6 +428,15 @@ class IcmpHelperLibrary:
 
         def isValidResponse(self):
             return self.__isValidResponse
+        
+        def getIcmpSequenceNumber_isValid(self):
+            return self._icmpSequenceNumber_isValid
+        
+        def getIcmpIdentifier_isValid(self):
+            return self._icmpIdentifier_isValid
+        
+        def getIcmpData_isValid(self):
+            return self._icmpData_isValid
 
         # ############################################################################################################ #
         # IcmpPacket_EchoReply Setters                                                                                 #
@@ -412,6 +447,15 @@ class IcmpHelperLibrary:
         # ############################################################################################################ #
         def setIsValidResponse(self, booleanValue):
             self.__isValidResponse = booleanValue
+
+        def setIcmpSequenceNumber_isValid(self, boolean):
+            self._icmpSequenceNumber_isValid = boolean
+
+        def setIcmpIdentifier_isValid(self, boolean):
+            self._icmpIdentifier_isValid = boolean
+
+        def setIcmpData_isValid(self, boolean):
+            self._icmpData_isValid = boolean
 
         # ############################################################################################################ #
         # IcmpPacket_EchoReply Private Functions                                                                       #
