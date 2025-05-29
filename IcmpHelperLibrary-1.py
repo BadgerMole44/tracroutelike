@@ -212,24 +212,24 @@ class IcmpHelperLibrary:
             seq_num, reply_seq_num = self.getPacketSequenceNumber(), icmpReplyPacket.getIcmpSequenceNumber()
             if seq_num == reply_seq_num:
                 icmpReplyPacket.setIcmpSequenceNumber_isValid(True)
-            print(f"Sent packet sequence number: {seq_num}. recieved packet sequence number {reply_seq_num}.") if self.__DEBUG_IcmpHelperLibrary else 0
+            print(f"Sent packet sequence number: {seq_num}. recieved packet sequence number {reply_seq_num}.") if self.__DEBUG_IcmpPacket else 0
             
             # confirm packet identifier
             id, reply_id = self.getPacketIdentifier(), icmpReplyPacket.getIcmpIdentifier()
             if id == reply_id:
                 icmpReplyPacket.setIcmpIdentifier_isValid(True)
-            print(f"Sent packet identifier: {id}. recieved packet identifier {reply_id}.") if self.__DEBUG_IcmpHelperLibrary else 0
+            print(f"Sent packet identifier: {id}. recieved packet identifier {reply_id}.") if self.__DEBUG_IcmpPacket else 0
 
             # confirm raw data
             raw_data, reply_raw_data = self.getDataRaw(), icmpReplyPacket.getIcmpData()
             if self.getDataRaw() == icmpReplyPacket.getIcmpData():
                 icmpReplyPacket.setIcmpData_isValid(True)
-            print(f"Sent packet raw data: {raw_data}. recieved packet raw data{reply_raw_data}.") if self.__DEBUG_IcmpHelperLibrary else 0
+            print(f"Sent packet raw data: {raw_data}. recieved packet raw data{reply_raw_data}.") if self.__DEBUG_IcmpPacket else 0
 
             # set the validity of the reply packet
             if icmpReplyPacket.getIcmpSequenceNumber_isValid() & icmpReplyPacket.getIcmpIdentifier_isValid() & icmpReplyPacket.getIcmpData_isValid(): 
                 icmpReplyPacket.setIsValidResponse(True)
-            print(f"Icmp reply packet is valid: {icmpReplyPacket.isValidResponse()}") if self.__DEBUG_IcmpHelperLibrary else 0
+            print(f"Icmp reply packet is valid: {icmpReplyPacket.isValidResponse()}") if self.__DEBUG_IcmpPacket else 0
 
         # ############################################################################################################ #
         # IcmpPacket Class Public Functions                                                                            #
