@@ -246,11 +246,9 @@ class IcmpHelperLibrary:
             self.__dataRaw = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz"
             self.__packAndRecalculateChecksum()
 
-        def sendEchoRequest(self):
+        def sendEchoRequest(self, tracerouteBool=False):
             if len(self.__icmpTarget.strip()) <= 0 | len(self.__destinationIpAddress.strip()) <= 0:
                 self.setIcmpTarget("127.0.0.1")
-
-            print("Pinging (" + self.__icmpTarget + ") " + self.__destinationIpAddress)
 
             mySocket = socket(AF_INET, SOCK_RAW, IPPROTO_ICMP)
             mySocket.settimeout(self.__ipTimeout)
@@ -302,7 +300,7 @@ class IcmpHelperLibrary:
                     elif icmpType == 0:                         # Echo Reply
                         icmpReplyPacket = IcmpHelperLibrary.IcmpPacket_EchoReply(recvPacket)
                         self.__validateIcmpReplyPacketWithOriginalPingData(icmpReplyPacket)
-                        icmpReplyPacket.printResultToConsole(self.getTtl(), timeReceived, addr)
+                        icmpReplyPacket.printResultToConsole(self.getTtl(), timeReceived, addr, tracerouteBool)
                         return      # Echo reply is the end and therefore should return
 
                     else:
@@ -438,6 +436,9 @@ class IcmpHelperLibrary:
         def getIcmpData_isValid(self):
             return self._icmpData_isValid
 
+        def getTTL(self):
+            return self.__unpackByFormatAndPosition("B", 8)
+
         # ############################################################################################################ #
         # IcmpPacket_EchoReply Setters                                                                                 #
         #                                                                                                              #
@@ -475,10 +476,32 @@ class IcmpHelperLibrary:
         #                                                                                                              #
         #                                                                                                              #
         # ############################################################################################################ #
-        def printResultToConsole(self, ttl, timeReceived, addr):
+        def printResultToConsole(self, ttl, timeReceived, addr, traceroutBool):
+            """
+                Print individual echo request reply packet information and store the information for later statistics: 
+                    - packet info
+                    - packet validity
+                    - display error response code
+            """
+            line = ""
+            errorLine = ""
             bytes = struct.calcsize("d")
             timeSent = struct.unpack("d", self.__recvPacket[28:28 + bytes])[0]
-            print("  TTL=%d    RTT=%.0f ms    Type=%d    Code=%d        Identifier=%d    Sequence Number=%d    %s" %
+            rtt = (timeReceived - timeSent) * 1000
+
+            # build the error line here
+
+            # ping info
+            if not traceroutBool:
+                line += f"    Recieved data from {addr}: ICMP_Seq={self.getIcmpSequenceNumber()} TTL={self.getTTL()} RTT={rtt} ms {errorLine}"
+            
+            # traceroute info
+            else:
+                line += f"    TTL={ttl}    RTT={rtt} ms    Type={self.getIcmpType()}    Code={self.getIcmpCode()} {errorLine}   {addr}"
+            
+            # display packet info
+            
+            print("  TTL=%d    RTT=%.0f ms    Type=%d    Code=%d   Identifier=%d    Sequence Number=%d    %s" %
                   (
                       ttl,
                       (timeReceived - timeSent) * 1000,
@@ -497,7 +520,7 @@ class IcmpHelperLibrary:
     #                                                                                                                  #
     #                                                                                                                  #
     # ################################################################################################################ #
-
+    icmpCodes = { 0:"Net Unreachable", 1:"Host Unreachable" , 2:"Protocol Unreachable", 3:"Port Unreachable", 4:"Fragmentation Needed and Don't Fragment was Set", 5:"Source Route Failed", 6:"Destination Network Unknown", 7:"Destination Host Unknown", 8:"Source Host Isolated", 9:"Comm with Dest Net is admin prohibited", 10:"Comm with Dest Host is admin prohibited", 11:"Dest Net Unreachable for Type of service", 12:"Dest Host Unreachable for Type of service", 13:"Commm Admin Prohibited", 14:"Host Precedence Violation", 15:"Precedence cutoff in effect"}
     # ################################################################################################################ #
     # IcmpHelperLibrary Class Scope Variables                                                                          #
     #                                                                                                                  #
@@ -506,7 +529,7 @@ class IcmpHelperLibrary:
     #                                                                                                                  #
     # ################################################################################################################ #
     __DEBUG_IcmpHelperLibrary = False                  # Allows for debug output
-
+    
     # ################################################################################################################ #
     # IcmpHelperLibrary Private Functions                                                                              #
     #                                                                                                                  #
@@ -514,10 +537,26 @@ class IcmpHelperLibrary:
     #                                                                                                                  #
     #                                                                                                                  #
     # ################################################################################################################ #
-    def __sendIcmpEchoRequest(self, host):
+    def __sendIcmpEchoRequest(self, host, tracerouteBool=False):
+        """"
+            actions depend on traceroute bool.
+        """
         print("sendIcmpEchoRequest Started...") if self.__DEBUG_IcmpHelperLibrary else 0
 
-        for i in range(4):
+        # print the initial ping line
+        if not tracerouteBool:
+            destAddr = ""
+            try:
+                destAddr = gethostbyname(host.strip())
+            except:
+                exit("could not resolve hostname")
+            print(f"PINGING {host} ({destAddr})")
+
+        loops = 4
+        if tracerouteBool:
+            loops = 1 
+        for i in range(loops):
+
             # Build packet
             icmpPacket = IcmpHelperLibrary.IcmpPacket()
 
@@ -529,11 +568,16 @@ class IcmpHelperLibrary:
 
             icmpPacket.buildPacket_echoRequest(packetIdentifier, packetSequenceNumber)  # Build ICMP for IP payload
             icmpPacket.setIcmpTarget(host)
-            icmpPacket.sendEchoRequest()                                                # Build IP
+            icmpPacket.sendEchoRequest(tracerouteBool)                                                # Build IP
 
             icmpPacket.printIcmpPacketHeader_hex() if self.__DEBUG_IcmpHelperLibrary else 0
             icmpPacket.printIcmpPacket_hex() if self.__DEBUG_IcmpHelperLibrary else 0
             # we should be confirming values are correct, such as identifier and sequence number and data
+
+        if not tracerouteBool:
+            pass
+            # self.printPingStatistics
+            
 
     def __sendIcmpTraceRoute(self, host):
         print("sendIcmpTraceRoute Started...") if self.__DEBUG_IcmpHelperLibrary else 0
