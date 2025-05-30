@@ -616,7 +616,7 @@ class IcmpHelperLibrary:
         rtts = self.getRTTs()
         sent, recieved = self.getPacketsSent(), len(self.getRTTs())
         ratio = (sent-recieved) / sent
-        avg = sum(rtts) / recieved
+        avg = round(sum(rtts) / recieved, 1)
         lines += f"{sent} packets transmitted, {recieved} received, {ratio:.2%} packet loss\nMin RTT: {self.getMinRTT()}, Max RTT: {self.getMaxRTT()} Avg RTT: {avg}"
         print(lines)       
 
