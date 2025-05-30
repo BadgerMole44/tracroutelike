@@ -69,6 +69,9 @@ class IcmpHelperLibrary:
 
         __DEBUG_IcmpPacket = False      # Allows for debug output
 
+        def __init__(self, helper):
+            self.helper = helper
+
         # ############################################################################################################ #
         # IcmpPacket Class Getters                                                                                     #
         #                                                                                                              #
@@ -256,6 +259,9 @@ class IcmpHelperLibrary:
             mySocket.setsockopt(IPPROTO_IP, IP_TTL, struct.pack('I', self.getTtl()))  # Unsigned int - 4 bytes
             try:
                 mySocket.sendto(b''.join([self.__header, self.__data]), (self.__destinationIpAddress, 0))
+
+                self.helper.incPacketsSent()                        # count packets sent
+
                 timeLeft = 30
                 pingStartTime = time.time()
                 startedSelect = time.time()
@@ -324,6 +330,7 @@ class IcmpHelperLibrary:
             print("Printing packet in hex...")
             self.printIcmpPacketHeader_hex()
             self.printIcmpPacketData_hex()
+
 
     # ################################################################################################################ #
     # Class IcmpPacket_EchoReply                                                                                       #
@@ -484,7 +491,6 @@ class IcmpHelperLibrary:
                     - display error response code
             """
             line = ""
-            errorLine = ""
             bytes = struct.calcsize("d")
             timeSent = struct.unpack("d", self.__recvPacket[28:28 + bytes])[0]
             rtt = (timeReceived - timeSent) * 1000
@@ -492,6 +498,12 @@ class IcmpHelperLibrary:
             # add ping info
             if not traceroutBool:
                 line += f"    Recieved data from {addr[0]}: ICMP_Seq={self.getIcmpSequenceNumber()} TTL={self.getTTL()} RTT={rtt} ms"
+                # collect data for ping statistics
+                if sentPacket.helper.getMinRTT() > rtt:         
+                    sentPacket.helper.setMinRTT(rtt)
+                if sentPacket.helper.getMaxRTT() < rtt:
+                    sentPacket.helper.setMaxRTT(rtt)
+                sentPacket.helper.addToRTTs(rtt)
             
             # add traceroute info
             else:
@@ -509,8 +521,9 @@ class IcmpHelperLibrary:
                 if not self.getIcmpData_isValid():                              # raw data validity
                     line += f" invalid packet Data: Expected: {sentPacket.getDataRaw()} Actual: {self.getIcmpData()}"
                 line += ")"
-            
+
             print(line)
+            
             
 
     # ################################################################################################################ #
@@ -521,6 +534,7 @@ class IcmpHelperLibrary:
     #                                                                                                                  #
     # ################################################################################################################ #
     icmpCodes = { 0:"Net Unreachable", 1:"Host Unreachable" , 2:"Protocol Unreachable", 3:"Port Unreachable", 4:"Fragmentation Needed and Don't Fragment was Set", 5:"Source Route Failed", 6:"Destination Network Unknown", 7:"Destination Host Unknown", 8:"Source Host Isolated", 9:"Comm with Dest Net is admin prohibited", 10:"Comm with Dest Host is admin prohibited", 11:"Dest Net Unreachable for Type of service", 12:"Dest Host Unreachable for Type of service", 13:"Commm Admin Prohibited", 14:"Host Precedence Violation", 15:"Precedence cutoff in effect"}
+
     # ################################################################################################################ #
     # IcmpHelperLibrary Class Scope Variables                                                                          #
     #                                                                                                                  #
@@ -529,6 +543,12 @@ class IcmpHelperLibrary:
     #                                                                                                                  #
     # ################################################################################################################ #
     __DEBUG_IcmpHelperLibrary = False                  # Allows for debug output
+    
+    # data for ping statistics
+    __packetsSent = 0
+    __minRTT = 1_000_000_000
+    __maxRTT = 0
+    __RTTs = []
     
     # ################################################################################################################ #
     # IcmpHelperLibrary Private Functions                                                                              #
@@ -558,7 +578,7 @@ class IcmpHelperLibrary:
         for i in range(loops):
 
             # Build packet
-            icmpPacket = IcmpHelperLibrary.IcmpPacket()
+            icmpPacket = IcmpHelperLibrary.IcmpPacket(self)
 
             randomIdentifier = (os.getpid() & 0xffff)      # Get as 16 bit number - Limit based on ICMP header standards
                                                            # Some PIDs are larger than 16 bit
@@ -575,13 +595,31 @@ class IcmpHelperLibrary:
             # we should be confirming values are correct, such as identifier and sequence number and data
 
         if not tracerouteBool:
-            pass
-            # self.printPingStatistics
+            self.__printPingStatistics(host)
+        else:
+            self.__printTracerouteStatistics(host)
             
 
     def __sendIcmpTraceRoute(self, host):
         print("sendIcmpTraceRoute Started...") if self.__DEBUG_IcmpHelperLibrary else 0
         # Build code for trace route here
+
+    def __printPingStatistics(self, host):
+        lines = f"- - - {host} PING statistics - - -\n"
+        self.__printStatistics(lines)
+
+    def __printTracerouteStatistics(self, host):
+        lines = f"- - - {host} TRACEROUTE statistics - - -\n"
+        self.__printStatistics(lines)
+    
+    def __printStatistics(self, lines):
+        rtts = self.getRTTs()
+        sent, recieved = self.getPacketsSent(), len(self.getRTTs())
+        ratio = recieved / sent
+        avg = sum(rtts) / sent
+        lines += f"{sent} packets transmitted, {recieved} received, {ratio:.2%} packet loss\nMin RTT: {self.getMinRTT()}, Max RTT: {self.getMaxRTT()} Avg RTT: {avg}"
+        print(lines)       
+
 
     # ################################################################################################################ #
     # IcmpHelperLibrary Public Functions                                                                               #
@@ -598,6 +636,29 @@ class IcmpHelperLibrary:
         print("traceRoute Started...") if self.__DEBUG_IcmpHelperLibrary else 0
         self.__sendIcmpTraceRoute(targetHost)
 
+    def getPacketsSent(self):
+        return self.__packetsSent
+
+    def getMinRTT(self):
+        return self.__minRTT
+        
+    def getMaxRTT(self):
+        return self.__maxRTT
+        
+    def getRTTs(self):
+        return self.__RTTs
+
+    def incPacketsSent(self):
+        self.__packetsSent += 1
+        
+    def setMinRTT(self, rtt):
+        self.__minRTT = rtt
+        
+    def setMaxRTT(self, rtt):
+        self.__maxRTT = rtt
+        
+    def addToRTTs(self, rtt):
+        self.__RTTs.append(rtt)
 
 # #################################################################################################################### #
 # main()                                                                                                               #
