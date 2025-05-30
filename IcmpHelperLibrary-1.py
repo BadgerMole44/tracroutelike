@@ -300,7 +300,7 @@ class IcmpHelperLibrary:
                     elif icmpType == 0:                         # Echo Reply
                         icmpReplyPacket = IcmpHelperLibrary.IcmpPacket_EchoReply(recvPacket)
                         self.__validateIcmpReplyPacketWithOriginalPingData(icmpReplyPacket)
-                        icmpReplyPacket.printResultToConsole(self.getTtl(), timeReceived, addr, tracerouteBool)
+                        icmpReplyPacket.printResultToConsole(self.getTtl(), timeReceived, addr, self, tracerouteBool)
                         return      # Echo reply is the end and therefore should return
 
                     else:
@@ -476,7 +476,7 @@ class IcmpHelperLibrary:
         #                                                                                                              #
         #                                                                                                              #
         # ############################################################################################################ #
-        def printResultToConsole(self, ttl, timeReceived, addr, traceroutBool):
+        def printResultToConsole(self, ttl, timeReceived, addr, sentPacket, traceroutBool=False):
             """
                 Print individual echo request reply packet information and store the information for later statistics: 
                     - packet info
@@ -489,29 +489,29 @@ class IcmpHelperLibrary:
             timeSent = struct.unpack("d", self.__recvPacket[28:28 + bytes])[0]
             rtt = (timeReceived - timeSent) * 1000
 
-            # build the error line here
-
-            # ping info
+            # add ping info
             if not traceroutBool:
-                line += f"    Recieved data from {addr}: ICMP_Seq={self.getIcmpSequenceNumber()} TTL={self.getTTL()} RTT={rtt} ms {errorLine}"
+                line += f"    Recieved data from {addr[0]}: ICMP_Seq={self.getIcmpSequenceNumber()} TTL={self.getTTL()} RTT={rtt} ms"
             
-            # traceroute info
+            # add traceroute info
             else:
-                line += f"    TTL={ttl}    RTT={rtt} ms    Type={self.getIcmpType()}    Code={self.getIcmpCode()} {errorLine}   {addr}"
+                line += f"    TTL={ttl}    RTT={rtt} ms    Type={self.getIcmpType()}    Code={self.getIcmpCode()}   {addr[0]}"
             
-            # display packet info
+            # add validity errors
+            if self.isValidResponse():                                  # is valid reply or not
+                line += " (echo reply is valid)"
+            else:
+                line += " (echo reply is not valid:"
+                if not self.getIcmpSequenceNumber_isValid():                    # sequence number validity
+                    line += f" invalid sequence number: Expected: {sentPacket.getIcmpSequenceNumber()} Actual: {self.getIcmpSequenceNumber()}"
+                if not self.getIcmpIdentifier_isValid():                        # identifier validity
+                    line += f" invalid packet identifier: Expecetd: {sentPacket.getIcmpPacketIdentifier()} Actual: {self.getIcmpIdentifier()}"
+                if not self.getIcmpData_isValid():                              # raw data validity
+                    line += f" invalid packet Data: Expected: {sentPacket.getDataRaw()} Actual: {self.getIcmpData()}"
+                line += ")"
             
-            print("  TTL=%d    RTT=%.0f ms    Type=%d    Code=%d   Identifier=%d    Sequence Number=%d    %s" %
-                  (
-                      ttl,
-                      (timeReceived - timeSent) * 1000,
-                      self.getIcmpType(),
-                      self.getIcmpCode(),
-                      self.getIcmpIdentifier(),
-                      self.getIcmpSequenceNumber(),
-                      addr[0]
-                  )
-                 )
+            print(line)
+            
 
     # ################################################################################################################ #
     # Class IcmpHelperLibrary                                                                                          #
