@@ -493,17 +493,17 @@ class IcmpHelperLibrary:
             line = ""
             bytes = struct.calcsize("d")
             timeSent = struct.unpack("d", self.__recvPacket[28:28 + bytes])[0]
-            rtt = (timeReceived - timeSent) * 1000
+            rtt = round((timeReceived - timeSent) * 1000, 1)
 
             # add ping info
             if not traceroutBool:
                 line += f"    Recieved data from {addr[0]}: ICMP_Seq={self.getIcmpSequenceNumber()} TTL={self.getTTL()} RTT={rtt} ms"
                 # collect data for ping statistics
                 if sentPacket.helper.getMinRTT() > rtt:         
-                    sentPacket.helper.setMinRTT(round(rtt, 1))
+                    sentPacket.helper.setMinRTT(rtt)
                 if sentPacket.helper.getMaxRTT() < rtt:
-                    sentPacket.helper.setMaxRTT(round(rtt, 1))
-                sentPacket.helper.addToRTTs(round(rtt, 1))
+                    sentPacket.helper.setMaxRTT(rtt)
+                sentPacket.helper.addToRTTs(rtt)
             
             # add traceroute info
             else:
