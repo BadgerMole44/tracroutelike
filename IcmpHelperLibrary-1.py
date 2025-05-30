@@ -500,10 +500,10 @@ class IcmpHelperLibrary:
                 line += f"    Recieved data from {addr[0]}: ICMP_Seq={self.getIcmpSequenceNumber()} TTL={self.getTTL()} RTT={rtt} ms"
                 # collect data for ping statistics
                 if sentPacket.helper.getMinRTT() > rtt:         
-                    sentPacket.helper.setMinRTT(rtt)
+                    sentPacket.helper.setMinRTT(round(rtt, 1))
                 if sentPacket.helper.getMaxRTT() < rtt:
-                    sentPacket.helper.setMaxRTT(rtt)
-                sentPacket.helper.addToRTTs(rtt)
+                    sentPacket.helper.setMaxRTT(round(rtt, 1))
+                sentPacket.helper.addToRTTs(round(rtt, 1))
             
             # add traceroute info
             else:
@@ -615,8 +615,8 @@ class IcmpHelperLibrary:
     def __printStatistics(self, lines):
         rtts = self.getRTTs()
         sent, recieved = self.getPacketsSent(), len(self.getRTTs())
-        ratio = recieved / sent
-        avg = sum(rtts) / sent
+        ratio = (sent-recieved) / sent
+        avg = sum(rtts) / recieved
         lines += f"{sent} packets transmitted, {recieved} received, {ratio:.2%} packet loss\nMin RTT: {self.getMinRTT()}, Max RTT: {self.getMaxRTT()} Avg RTT: {avg}"
         print(lines)       
 
