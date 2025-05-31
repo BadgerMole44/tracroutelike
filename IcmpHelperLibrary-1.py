@@ -290,17 +290,19 @@ class IcmpHelperLibrary:
                         if icmpCode == 1:
                             codeTxt = "(Fragment Reassembly Time Exceeded)"
 
+                        rtt = (timeReceived - pingStartTime) * 1000
+
                         print("  TTL=%d    RTT=%.0f ms    Type=%d    Code=%d %s   %s" %
                                 (
                                     self.getTtl(),
-                                    (timeReceived - pingStartTime) * 1000,
+                                    rtt,
                                     icmpType,
                                     icmpCode,
                                     codeTxt,
                                     addr[0]
                                 )
                               )
-                        self.helper.incPacketsRecieved()                    # count the packet
+                        self.helper.collectStats(rtt)                    # count the packet and track rtts
                         return False
 
                     elif icmpType == 3:                         # Destination Unreachable
@@ -309,11 +311,13 @@ class IcmpHelperLibrary:
 
                         if not codeTxt:
                             codeTxt = "other Icmp code"
+                        
+                        rtt = (timeReceived - pingStartTime) * 1000
 
                         print("  TTL=%d    RTT=%.0f ms    Type=%d    Code=%d %s   %s" %
                                   (
                                       self.getTtl(),
-                                      (timeReceived - pingStartTime) * 1000,
+                                      rtt,
                                       icmpType,
                                       icmpCode,
                                       f"({codeTxt})",
@@ -321,14 +325,13 @@ class IcmpHelperLibrary:
                                   )
                               )
                         
-                        self.helper.incPacketsRecieved()                    # count the packet
+                        self.helper.collectStats(rtt)                   # count the packet and track rtts
                         return False
 
                     elif icmpType == 0:                         # Echo Reply
                         icmpReplyPacket = IcmpHelperLibrary.IcmpPacket_EchoReply(recvPacket)
                         self.__validateIcmpReplyPacketWithOriginalPingData(icmpReplyPacket)
                         icmpReplyPacket.printResultToConsole(self.getTtl(), timeReceived, addr, self, tracerouteBool)
-                        self.helper.incPacketsRecieved()                    # count the packet
                         return True     # Echo reply is the end and therefore should return
 
                     else:
@@ -543,7 +546,7 @@ class IcmpHelperLibrary:
             print(line)
 
             # collect stats
-            sentPacket.helper.collectRTTStats(rtt)         
+            sentPacket.helper.collectStats(rtt)         
 
             
             
@@ -722,12 +725,14 @@ class IcmpHelperLibrary:
     def addToRTTs(self, rtt):
         self.__RTTs.append(rtt)
 
-    def collectRTTStats(self, rtt):
+    def collectStats(self, rtt):
         if self.getMinRTT() > rtt:         
             self.setMinRTT(rtt)
         if self.getMaxRTT() < rtt:
             self.setMaxRTT(rtt)
         self.addToRTTs(rtt)
+        self.incPacketsRecieved()
+
 
 # #################################################################################################################### #
 # main()                                                                                                               #
