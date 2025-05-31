@@ -210,7 +210,7 @@ class IcmpHelperLibrary:
             self.__recalculateChecksum()        # Result will set new checksum value
             self.__packHeader()                 # Header is rebuilt to include new checksum value
 
-        def __validateIcmpReplyPacketWithOriginalPingData(self, icmpReplyPacket):
+        def __validateIcmpReplyPacketWithOriginalPingData(self, icmpReplyPacket, isIcmpErrorReplyBool=False):
 
             # confirm sequence number
             seq_num, reply_seq_num = self.getPacketSequenceNumber(), icmpReplyPacket.getIcmpSequenceNumber()
@@ -225,10 +225,13 @@ class IcmpHelperLibrary:
             print(f"Sent packet identifier: {id}. recieved packet identifier {reply_id}.") if self.__DEBUG_IcmpPacket else 0
 
             # confirm raw data
-            raw_data, reply_raw_data = self.getDataRaw(), icmpReplyPacket.getIcmpData()
-            if self.getDataRaw() == icmpReplyPacket.getIcmpData():
-                icmpReplyPacket.setIcmpData_isValid(True)
-            print(f"Sent packet raw data: {raw_data}. recieved packet raw data{reply_raw_data}.") if self.__DEBUG_IcmpPacket else 0
+            if not isIcmpErrorReplyBool:
+                raw_data, reply_raw_data = self.getDataRaw(), icmpReplyPacket.getIcmpData()
+                if self.getDataRaw() == icmpReplyPacket.getIcmpData():
+                    icmpReplyPacket.setIcmpData_isValid(True)
+                print(f"Sent packet raw data: {raw_data}. recieved packet raw data{reply_raw_data}.") if self.__DEBUG_IcmpPacket else 0
+            else:
+                icmpReplyPacket.setIcmpData_isValid(True) # error packets don't echo the sent data. so just set this to true so packet validity can be checked.
 
             # set the validity of the reply packet
             if icmpReplyPacket.getIcmpSequenceNumber_isValid() & icmpReplyPacket.getIcmpIdentifier_isValid() & icmpReplyPacket.getIcmpData_isValid(): 
@@ -290,7 +293,7 @@ class IcmpHelperLibrary:
                         if icmpCode == 1:
                             codeTxt = "(Fragment Reassembly Time Exceeded)"
 
-                        rtt = (timeReceived - pingStartTime) * 1000
+                        rtt = round((timeReceived - pingStartTime) * 1000, 1)
 
                         print("  TTL=%d    RTT=%.0f ms    Type=%d    Code=%d %s   %s" %
                                 (
@@ -303,6 +306,11 @@ class IcmpHelperLibrary:
                                 )
                               )
                         self.helper.collectStats(rtt)                    # count the packet and track rtts
+
+                        # validate the packet
+                        IcmpHelperLibrary.IcmpPacket_EchoReply(recvPacket)
+                        self.__validateIcmpReplyPacketWithOriginalPingData(icmpReplyPacket, True)
+
                         return False
 
                     elif icmpType == 3:                         # Destination Unreachable
@@ -312,7 +320,7 @@ class IcmpHelperLibrary:
                         if not codeTxt:
                             codeTxt = "other Icmp code"
                         
-                        rtt = (timeReceived - pingStartTime) * 1000
+                        rtt = round((timeReceived - pingStartTime) * 1000, 1)
 
                         print("  TTL=%d    RTT=%.0f ms    Type=%d    Code=%d %s   %s" %
                                   (
@@ -326,6 +334,11 @@ class IcmpHelperLibrary:
                               )
                         
                         self.helper.collectStats(rtt)                   # count the packet and track rtts
+
+                        # validate the packet
+                        IcmpHelperLibrary.IcmpPacket_EchoReply(recvPacket)
+                        self.__validateIcmpReplyPacketWithOriginalPingData(icmpReplyPacket, True)
+                        
                         return False
 
                     elif icmpType == 0:                         # Echo Reply
