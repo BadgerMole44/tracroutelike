@@ -282,13 +282,18 @@ class IcmpHelperLibrary:
                     icmpType, icmpCode = recvPacket[20:22]
 
                     if icmpType == 11:                          # Time Exceeded
+
+                        codeTxt = "(Time to Live exceeded in Transit)"          # only two possible codes with type 11
+                        if icmpCode == 1:
+                            codeTxt = "(Fragment Reassembly Time Exceeded)"
+
                         print("  TTL=%d    RTT=%.0f ms    Type=%d    Code=%d %s   %s" %
                                 (
                                     self.getTtl(),
                                     (timeReceived - pingStartTime) * 1000,
                                     icmpType,
                                     icmpCode,
-                                    "(Time to Live exceeded in Transit)",
+                                    codeTxt,
                                     addr[0]
                                 )
                               )
