@@ -11,6 +11,7 @@ import struct
 import time
 import select
 
+import sys, signal
 
 # #################################################################################################################### #
 # Class IcmpHelperLibrary                                                                                              #
@@ -270,12 +271,14 @@ class IcmpHelperLibrary:
                 howLongInSelect = (endSelect - startedSelect)
                 if whatReady[0] == []:  # Timeout
                     print("  *        *        *        *        *    Request timed out.")
+                    return False
                 recvPacket, addr = mySocket.recvfrom(1024)  # recvPacket - bytes object representing data received
                 # addr  - address of socket sending data
                 timeReceived = time.time()
                 timeLeft = timeLeft - howLongInSelect
                 if timeLeft <= 0:
                     print("  *        *        *        *        *    Request timed out (By no remaining time left).")
+                    return False
 
                 else:
                     # Fetch the ICMP type and code from the received packet
@@ -297,6 +300,7 @@ class IcmpHelperLibrary:
                                     addr[0]
                                 )
                               )
+                        return False
 
                     elif icmpType == 3:                         # Destination Unreachable
 
@@ -315,17 +319,20 @@ class IcmpHelperLibrary:
                                       addr[0]
                                   )
                               )
+                        return False
 
                     elif icmpType == 0:                         # Echo Reply
                         icmpReplyPacket = IcmpHelperLibrary.IcmpPacket_EchoReply(recvPacket)
                         self.__validateIcmpReplyPacketWithOriginalPingData(icmpReplyPacket)
                         icmpReplyPacket.printResultToConsole(self.getTtl(), timeReceived, addr, self, tracerouteBool)
-                        return      # Echo reply is the end and therefore should return
+                        return True     # Echo reply is the end and therefore should return
 
                     else:
                         print("error")
+                        return False
             except timeout:
                 print("  *        *        *        *        *    Request timed out (By Exception).")
+                return False
             finally:
                 mySocket.close()
 
@@ -547,7 +554,7 @@ class IcmpHelperLibrary:
     #                                                                                                                  #
     # ################################################################################################################ #
     icmpCodes = { 0:"Net Unreachable", 1:"Host Unreachable" , 2:"Protocol Unreachable", 3:"Port Unreachable", 4:"Fragmentation Needed and Don't Fragment was Set", 5:"Source Route Failed", 6:"Destination Network Unknown", 7:"Destination Host Unknown", 8:"Source Host Isolated", 9:"Comm with Dest Net is admin prohibited", 10:"Comm with Dest Host is admin prohibited", 11:"Dest Net Unreachable for Type of service", 12:"Dest Host Unreachable for Type of service", 13:"Commm Admin Prohibited", 14:"Host Precedence Violation", 15:"Precedence cutoff in effect"}
-
+    targetHost = ""
     # ################################################################################################################ #
     # IcmpHelperLibrary Class Scope Variables                                                                          #
     #                                                                                                                  #
@@ -562,6 +569,9 @@ class IcmpHelperLibrary:
     __minRTT = 1_000_000_000
     __maxRTT = 0
     __RTTs = []
+
+    def __init__(self):
+        signal.signal(signal.SIGINT, self.__signal_handler) # register the signal handler 
     
     # ################################################################################################################ #
     # IcmpHelperLibrary Private Functions                                                                              #
@@ -601,38 +611,35 @@ class IcmpHelperLibrary:
 
             icmpPacket.buildPacket_echoRequest(packetIdentifier, packetSequenceNumber)  # Build ICMP for IP payload
             icmpPacket.setIcmpTarget(host)
-            icmpPacket.sendEchoRequest(tracerouteBool)                                                # Build IP
+            reachedDestination = icmpPacket.sendEchoRequest(tracerouteBool)                                                # Build IP
 
             icmpPacket.printIcmpPacketHeader_hex() if self.__DEBUG_IcmpHelperLibrary else 0
             icmpPacket.printIcmpPacket_hex() if self.__DEBUG_IcmpHelperLibrary else 0
             # we should be confirming values are correct, such as identifier and sequence number and data
 
         if not tracerouteBool:
-            self.__printPingStatistics(host)
-        else:
-            self.__printTracerouteStatistics(host)
+            print(f"- - - {host} PING statistics - - -")
+            self.__printStatistics(host)
             
 
     def __sendIcmpTraceRoute(self, host):
         print("sendIcmpTraceRoute Started...") if self.__DEBUG_IcmpHelperLibrary else 0
+        pass
         # Build code for trace route here
+        # continue sending packets with increasing TTL untill the destination is reached or user send SIGINT
 
-    def __printPingStatistics(self, host):
-        lines = f"- - - {host} PING statistics - - -\n"
-        self.__printStatistics(lines)
+        # print trace route stats at the end
 
-    def __printTracerouteStatistics(self, host):
-        lines = f"- - - {host} TRACEROUTE statistics - - -\n"
-        self.__printStatistics(lines)
-    
-    def __printStatistics(self, lines):
+    def __printStatistics(self):
         rtts = self.getRTTs()
         sent, recieved = self.getPacketsSent(), len(self.getRTTs())
         ratio = (sent-recieved) / sent
         avg = round(sum(rtts) / recieved, 1)
-        lines += f"{sent} packets transmitted, {recieved} received, {ratio:.2%} packet loss\nMin RTT: {self.getMinRTT()}, Max RTT: {self.getMaxRTT()} Avg RTT: {avg}"
-        print(lines)       
+        print(f"{sent} packets transmitted, {recieved} received, {ratio:.2%} packet loss\nMin RTT: {self.getMinRTT()}, Max RTT: {self.getMaxRTT()} Avg RTT: {avg}")     
 
+    def __signalHandler(self, sig, frame):  
+        print(f"- - - {self.targetHost} statistics - - -")
+        self.__printStatistics()
 
     # ################################################################################################################ #
     # IcmpHelperLibrary Public Functions                                                                               #
@@ -643,10 +650,13 @@ class IcmpHelperLibrary:
     # ################################################################################################################ #
     def sendPing(self, targetHost):
         print("ping Started...") if self.__DEBUG_IcmpHelperLibrary else 0
+
         self.__sendIcmpEchoRequest(targetHost)
+        self.targetHost = targetHost
 
     def traceRoute(self, targetHost):
         print("traceRoute Started...") if self.__DEBUG_IcmpHelperLibrary else 0
+        self.targetHost = targetHost
         self.__sendIcmpTraceRoute(targetHost)
 
     # getters
@@ -692,7 +702,6 @@ class IcmpHelperLibrary:
 # #################################################################################################################### #
 def main():
     icmpHelperPing = IcmpHelperLibrary()
-
 
     # Choose one of the following by uncommenting out the line
     icmpHelperPing.sendPing("209.233.126.254")
