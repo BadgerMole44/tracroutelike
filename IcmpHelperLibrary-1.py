@@ -308,7 +308,7 @@ class IcmpHelperLibrary:
                         self.helper.collectStats(rtt)                    # count the packet and track rtts
 
                         # validate the packet
-                        IcmpHelperLibrary.IcmpPacket_EchoReply(recvPacket)
+                        icmpReplyPacket = IcmpHelperLibrary.IcmpPacket_EchoReply(recvPacket)
                         self.__validateIcmpReplyPacketWithOriginalPingData(icmpReplyPacket, True)
 
                         return False
@@ -523,7 +523,7 @@ class IcmpHelperLibrary:
         #                                                                                                              #
         #                                                                                                              #
         # ############################################################################################################ #
-        def printResultToConsole(self, ttl, timeReceived, addr, sentPacket, traceroutBool=False):
+        def printResultToConsole(self, ttl, timeReceived, addr, sentPacket, tracerouteBool=False):
             """
                 Print individual echo request reply packet information and store the information for later statistics: 
                     - packet info
@@ -536,7 +536,7 @@ class IcmpHelperLibrary:
             rtt = round((timeReceived - timeSent) * 1000, 1)
 
             # add ping info
-            if not traceroutBool:
+            if not tracerouteBool:
                 line += f"    Received data from {addr[0]}: ICMP_Seq={self.getIcmpSequenceNumber()} TTL={self.getTTL()} RTT={rtt} ms"
             
             # add traceroute info
