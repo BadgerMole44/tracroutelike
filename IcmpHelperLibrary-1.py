@@ -282,23 +282,31 @@ class IcmpHelperLibrary:
                     icmpType, icmpCode = recvPacket[20:22]
 
                     if icmpType == 11:                          # Time Exceeded
-                        print("  TTL=%d    RTT=%.0f ms    Type=%d    Code=%d    %s" %
+                        print("  TTL=%d    RTT=%.0f ms    Type=%d    Code=%d %s   %s" %
                                 (
                                     self.getTtl(),
                                     (timeReceived - pingStartTime) * 1000,
                                     icmpType,
                                     icmpCode,
+                                    "(Time to Live exceeded in Transit)",
                                     addr[0]
                                 )
                               )
 
                     elif icmpType == 3:                         # Destination Unreachable
-                        print("  TTL=%d    RTT=%.0f ms    Type=%d    Code=%d    %s" %
+
+                        codeTxt = self.helper.getIcmpCode(icmpCode)   # let the helper get the icmp code txt
+
+                        if not codeTxt:
+                            codeTxt = "other Icmp code"
+
+                        print("  TTL=%d    RTT=%.0f ms    Type=%d    Code=%d %s   %s" %
                                   (
                                       self.getTtl(),
                                       (timeReceived - pingStartTime) * 1000,
                                       icmpType,
                                       icmpCode,
+                                      f"({codeTxt})",
                                       addr[0]
                                   )
                               )
@@ -636,6 +644,8 @@ class IcmpHelperLibrary:
         print("traceRoute Started...") if self.__DEBUG_IcmpHelperLibrary else 0
         self.__sendIcmpTraceRoute(targetHost)
 
+    # getters
+
     def getPacketsSent(self):
         return self.__packetsSent
 
@@ -647,6 +657,14 @@ class IcmpHelperLibrary:
         
     def getRTTs(self):
         return self.__RTTs
+    
+    def getIcmpCode(self, code):
+        try:
+            return self.icmpCodes[code]
+        except KeyError:
+            return False
+    
+    # setters
 
     def incPacketsSent(self):
         self.__packetsSent += 1
