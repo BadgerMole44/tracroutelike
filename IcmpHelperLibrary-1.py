@@ -300,6 +300,7 @@ class IcmpHelperLibrary:
                                     addr[0]
                                 )
                               )
+                        self.helper.incPacketsRecieved()                    # count the packet
                         return False
 
                     elif icmpType == 3:                         # Destination Unreachable
@@ -319,12 +320,15 @@ class IcmpHelperLibrary:
                                       addr[0]
                                   )
                               )
+                        
+                        self.helper.incPacketsRecieved()                    # count the packet
                         return False
 
                     elif icmpType == 0:                         # Echo Reply
                         icmpReplyPacket = IcmpHelperLibrary.IcmpPacket_EchoReply(recvPacket)
                         self.__validateIcmpReplyPacketWithOriginalPingData(icmpReplyPacket)
                         icmpReplyPacket.printResultToConsole(self.getTtl(), timeReceived, addr, self, tracerouteBool)
+                        self.helper.incPacketsRecieved()                    # count the packet
                         return True     # Echo reply is the end and therefore should return
 
                     else:
@@ -564,6 +568,7 @@ class IcmpHelperLibrary:
     
     # data for ping statistics
     __packetsSent = 0
+    __packetsRecieved = 0
     __minRTT = 1_000_000_000
     __maxRTT = 0
     __RTTs = []
@@ -608,7 +613,7 @@ class IcmpHelperLibrary:
             packetIdentifier = randomIdentifier
             packetSequenceNumber = i
 
-            # if this is trace route set the ttl
+            # if this is traceroute set the ttl
             if ttl:
                 icmpPacket.setTtl(ttl)
 
@@ -650,7 +655,7 @@ class IcmpHelperLibrary:
 
     def __printStatistics(self):
         rtts = self.getRTTs()
-        sent, recieved = self.getPacketsSent(), len(self.getRTTs())
+        sent, recieved = self.getPacketsSent(), self.getPacketsRecieved()
         ratio = (sent-recieved) / sent
         avg = round(sum(rtts) / recieved, 1)
         print(f"{sent} packets transmitted, {recieved} received, {ratio:.2%} packet loss\nMin RTT: {self.getMinRTT()}, Max RTT: {self.getMaxRTT()} Avg RTT: {avg}")     
@@ -681,6 +686,9 @@ class IcmpHelperLibrary:
 
     def getPacketsSent(self):
         return self.__packetsSent
+    
+    def getPacketsRecieved(self):
+        return self.__packetsRecieved
 
     def getMinRTT(self):
         return self.__minRTT
@@ -701,6 +709,9 @@ class IcmpHelperLibrary:
 
     def incPacketsSent(self):
         self.__packetsSent += 1
+    
+    def incPacketsRecieved(self):
+        self.__packetsRecieved += 1
         
     def setMinRTT(self, rtt):
         self.__minRTT = rtt
