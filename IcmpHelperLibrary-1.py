@@ -580,14 +580,14 @@ class IcmpHelperLibrary:
     #                                                                                                                  #
     #                                                                                                                  #
     # ################################################################################################################ #
-    def __sendIcmpEchoRequest(self, host, tracerouteBool=False):
+    def __sendIcmpEchoRequest(self, host, ttl=False):
         """"
             actions depend on traceroute bool.
         """
         print("sendIcmpEchoRequest Started...") if self.__DEBUG_IcmpHelperLibrary else 0
 
         # print the initial ping line
-        if not tracerouteBool:
+        if not ttl:
             destAddr = ""
             try:
                 destAddr = gethostbyname(host.strip())
@@ -596,7 +596,7 @@ class IcmpHelperLibrary:
             print(f"PINGING {host} ({destAddr})")
 
         loops = 4
-        if tracerouteBool:
+        if ttl:
             loops = 1 
         for i in range(loops):
 
@@ -609,26 +609,47 @@ class IcmpHelperLibrary:
             packetIdentifier = randomIdentifier
             packetSequenceNumber = i
 
+            # if this is trace route set the ttl
+            if ttl:
+                icmpPacket.setTtl(ttl)
+
             icmpPacket.buildPacket_echoRequest(packetIdentifier, packetSequenceNumber)  # Build ICMP for IP payload
             icmpPacket.setIcmpTarget(host)
-            reachedDestination = icmpPacket.sendEchoRequest(tracerouteBool)                                                # Build IP
+            reachedDestination = icmpPacket.sendEchoRequest(bool(ttl))                # Build IP
 
             icmpPacket.printIcmpPacketHeader_hex() if self.__DEBUG_IcmpHelperLibrary else 0
             icmpPacket.printIcmpPacket_hex() if self.__DEBUG_IcmpHelperLibrary else 0
             # we should be confirming values are correct, such as identifier and sequence number and data
 
-        if not tracerouteBool:
+        if not ttl:
             print(f"- - - {host} PING statistics - - -")
             self.__printStatistics()
+
+        return reachedDestination
             
 
     def __sendIcmpTraceRoute(self, host):
         print("sendIcmpTraceRoute Started...") if self.__DEBUG_IcmpHelperLibrary else 0
-        pass
-        # Build code for trace route here
-        # continue sending packets with increasing TTL untill the destination is reached or user send SIGINT
+        
+        reachedDest = False
+        ttl = 0
 
-        # print trace route stats at the end
+        # continue sending packets with increasing TTL untill the destination is reached or user send SIGINT
+        while not reachedDest:        
+            ttl += 1
+            reachedDest = self.__sendIcmpEchoRequest(host, ttl)
+
+        # show stats
+        destAddr = ""
+        try:
+            destAddr = gethostbyname(host.strip())
+        except:
+            exit("could not resolve hostname")
+            print(f"PINGING {host} ({destAddr})")
+        print(f"- - - {host} ({destAddr}) Traceroute statistics - - -")
+        self.__printStatistics()
+            
+
 
     def __printStatistics(self):
         rtts = self.getRTTs()
