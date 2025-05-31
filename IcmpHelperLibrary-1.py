@@ -571,7 +571,7 @@ class IcmpHelperLibrary:
     __RTTs = []
 
     def __init__(self):
-        signal.signal(signal.SIGINT, self.__signal_handler) # register the signal handler 
+        signal.signal(signal.SIGINT, self.__signalHandler) # register the signal handler 
     
     # ################################################################################################################ #
     # IcmpHelperLibrary Private Functions                                                                              #
