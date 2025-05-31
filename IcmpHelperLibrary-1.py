@@ -518,12 +518,6 @@ class IcmpHelperLibrary:
             # add ping info
             if not traceroutBool:
                 line += f"    Recieved data from {addr[0]}: ICMP_Seq={self.getIcmpSequenceNumber()} TTL={self.getTTL()} RTT={rtt} ms"
-                # collect data for ping statistics
-                if sentPacket.helper.getMinRTT() > rtt:         
-                    sentPacket.helper.setMinRTT(rtt)
-                if sentPacket.helper.getMaxRTT() < rtt:
-                    sentPacket.helper.setMaxRTT(rtt)
-                sentPacket.helper.addToRTTs(rtt)
             
             # add traceroute info
             else:
@@ -543,6 +537,10 @@ class IcmpHelperLibrary:
                 line += ")"
 
             print(line)
+
+            # collect stats
+            sentPacket.helper.collectRTTStats(rtt)         
+
             
             
 
@@ -572,6 +570,7 @@ class IcmpHelperLibrary:
 
     def __init__(self):
         signal.signal(signal.SIGINT, self.__signalHandler) # register the signal handler 
+        # signal register source: stackoverflow.com/questions/1112343/how-do-i-capture-sigint-in-python
     
     # ################################################################################################################ #
     # IcmpHelperLibrary Private Functions                                                                              #
@@ -648,8 +647,6 @@ class IcmpHelperLibrary:
             print(f"PINGING {host} ({destAddr})")
         print(f"- - - {host} ({destAddr}) Traceroute statistics - - -")
         self.__printStatistics()
-            
-
 
     def __printStatistics(self):
         rtts = self.getRTTs()
@@ -713,6 +710,13 @@ class IcmpHelperLibrary:
         
     def addToRTTs(self, rtt):
         self.__RTTs.append(rtt)
+
+    def collectRTTStats(self, rtt):
+        if self.getMinRTT() > rtt:         
+            self.setMinRTT(rtt)
+        if self.getMaxRTT() < rtt:
+            self.setMaxRTT(rtt)
+        self.addToRTTs(rtt)
 
 # #################################################################################################################### #
 # main()                                                                                                               #
