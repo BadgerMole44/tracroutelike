@@ -216,20 +216,20 @@ class IcmpHelperLibrary:
             seq_num, reply_seq_num = self.getPacketSequenceNumber(), icmpReplyPacket.getIcmpSequenceNumber()
             if seq_num == reply_seq_num:
                 icmpReplyPacket.setIcmpSequenceNumber_isValid(True)
-            print(f"Sent packet sequence number: {seq_num}. recieved packet sequence number {reply_seq_num}.") if self.__DEBUG_IcmpPacket else 0
+            print(f"Sent packet sequence number: {seq_num}. Received packet sequence number {reply_seq_num}.") if self.__DEBUG_IcmpPacket else 0
             
             # confirm packet identifier
             id, reply_id = self.getPacketIdentifier(), icmpReplyPacket.getIcmpIdentifier()
             if id == reply_id:
                 icmpReplyPacket.setIcmpIdentifier_isValid(True)
-            print(f"Sent packet identifier: {id}. recieved packet identifier {reply_id}.") if self.__DEBUG_IcmpPacket else 0
+            print(f"Sent packet identifier: {id}. Received packet identifier {reply_id}.") if self.__DEBUG_IcmpPacket else 0
 
             # confirm raw data
             if not isIcmpErrorReplyBool:
                 raw_data, reply_raw_data = self.getDataRaw(), icmpReplyPacket.getIcmpData()
                 if self.getDataRaw() == icmpReplyPacket.getIcmpData():
                     icmpReplyPacket.setIcmpData_isValid(True)
-                print(f"Sent packet raw data: {raw_data}. recieved packet raw data{reply_raw_data}.") if self.__DEBUG_IcmpPacket else 0
+                print(f"Sent packet raw data: {raw_data}. Received packet raw data{reply_raw_data}.") if self.__DEBUG_IcmpPacket else 0
             else:
                 icmpReplyPacket.setIcmpData_isValid(True) # error packets don't echo the sent data. so just set this to true so packet validity can be checked.
 
@@ -338,7 +338,7 @@ class IcmpHelperLibrary:
                         # validate the packet
                         IcmpHelperLibrary.IcmpPacket_EchoReply(recvPacket)
                         self.__validateIcmpReplyPacketWithOriginalPingData(icmpReplyPacket, True)
-                        
+
                         return False
 
                     elif icmpType == 0:                         # Echo Reply
@@ -537,7 +537,7 @@ class IcmpHelperLibrary:
 
             # add ping info
             if not traceroutBool:
-                line += f"    Recieved data from {addr[0]}: ICMP_Seq={self.getIcmpSequenceNumber()} TTL={self.getTTL()} RTT={rtt} ms"
+                line += f"    Received data from {addr[0]}: ICMP_Seq={self.getIcmpSequenceNumber()} TTL={self.getTTL()} RTT={rtt} ms"
             
             # add traceroute info
             else:
@@ -584,7 +584,7 @@ class IcmpHelperLibrary:
     
     # data for ping statistics
     __packetsSent = 0
-    __packetsRecieved = 0
+    __packetsReceived = 0
     __minRTT = 1_000_000_000
     __maxRTT = 0
     __RTTs = []
@@ -671,10 +671,10 @@ class IcmpHelperLibrary:
 
     def __printStatistics(self):
         rtts = self.getRTTs()
-        sent, recieved = self.getPacketsSent(), self.getPacketsRecieved()
-        ratio = (sent-recieved) / sent
-        avg = round(sum(rtts) / recieved, 1)
-        print(f"{sent} packets transmitted, {recieved} received, {ratio:.2%} packet loss\nMin RTT: {self.getMinRTT()}, Max RTT: {self.getMaxRTT()} Avg RTT: {avg}")     
+        sent, received = self.getPacketsSent(), self.getPacketsReceived()
+        ratio = (sent-received) / sent
+        avg = round(sum(rtts) / received, 1)
+        print(f"{sent} packets transmitted, {received} received, {ratio:.2%} packet loss\nMin RTT: {self.getMinRTT()}, Max RTT: {self.getMaxRTT()} Avg RTT: {avg}")     
 
     def __signalHandler(self, sig, frame):  
         print(f"- - - {self.targetHost} statistics - - -")
@@ -703,8 +703,8 @@ class IcmpHelperLibrary:
     def getPacketsSent(self):
         return self.__packetsSent
     
-    def getPacketsRecieved(self):
-        return self.__packetsRecieved
+    def getPacketsReceived(self):
+        return self.__packetsReceived
 
     def getMinRTT(self):
         return self.__minRTT
@@ -726,8 +726,8 @@ class IcmpHelperLibrary:
     def incPacketsSent(self):
         self.__packetsSent += 1
     
-    def incPacketsRecieved(self):
-        self.__packetsRecieved += 1
+    def incPacketsReceived(self):
+        self.__packetsReceived += 1
         
     def setMinRTT(self, rtt):
         self.__minRTT = rtt
@@ -744,7 +744,7 @@ class IcmpHelperLibrary:
         if self.getMaxRTT() < rtt:
             self.setMaxRTT(rtt)
         self.addToRTTs(rtt)
-        self.incPacketsRecieved()
+        self.incPacketsReceived()
 
 
 # #################################################################################################################### #
@@ -755,10 +755,32 @@ class IcmpHelperLibrary:
 #                                                                                                                      #
 # #################################################################################################################### #
 def main():
-    icmpHelperPing = IcmpHelperLibrary()
+
+    # look for args and validate
+    args = sys.argv
+    num_args = len(args) - 1
+    if num_args < 2:
+        sys.exit(f"Error: provided too few args. Expected: 2. Received: {num_args}. Usage IcmpHelperLibrary-1.py [method: -t, --traceroute, -p, --ping] [target: x.x.x.x, www.google.com]")
+        
+    elif num_args > 2:
+        sys.exit(f"Error: provided too many args. Expected: 2. Received: {num_args}. Usage IcmpHelperLibrary-1.py [method: -t, --traceroute, -p, --ping] [target: x.x.x.x, www.google.com]")
+    
+    # acitvate the correct method
+    method = args[1]
+    target = args[2]
+    icmpHelper = IcmpHelperLibrary()
+
+    if method == "-t" or method == "--traceroute":      # traceroute
+        icmpHelper.traceRoute(target)
+
+    elif method == "-p" or method == "--ping":          # ping
+        icmpHelper.sendPing(target)
+    
+    else:                                               # invalid method 
+        sys.exit(f"Error: invalid method {method}. Methods are: [method: -t, --traceroute, -p, --ping]. Usage: Usage IcmpHelperLibrary-1.py [method: -t, --traceroute, -p, --ping] [target: x.x.x.x, www.google.com]")
 
     # Choose one of the following by uncommenting out the line
-    icmpHelperPing.sendPing("209.233.126.254")
+    # icmpHelperPing.sendPing("209.233.126.254")
     # icmpHelperPing.sendPing("www.google.com")
     # icmpHelperPing.sendPing("gaia.cs.umass.edu")
     # icmpHelperPing.traceRoute("164.151.129.20")
