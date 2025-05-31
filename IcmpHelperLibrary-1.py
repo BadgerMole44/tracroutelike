@@ -619,7 +619,7 @@ class IcmpHelperLibrary:
 
         if not tracerouteBool:
             print(f"- - - {host} PING statistics - - -")
-            self.__printStatistics(host)
+            self.__printStatistics()
             
 
     def __sendIcmpTraceRoute(self, host):
