@@ -679,6 +679,7 @@ class IcmpHelperLibrary:
     def __signalHandler(self, sig, frame):  
         print(f"- - - {self.targetHost} statistics - - -")
         self.__printStatistics()
+        sys.exit()
 
     # ################################################################################################################ #
     # IcmpHelperLibrary Public Functions                                                                               #
