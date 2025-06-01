@@ -336,7 +336,7 @@ class IcmpHelperLibrary:
                         self.helper.collectStats(rtt)                   # count the packet and track rtts
 
                         # validate the packet
-                        IcmpHelperLibrary.IcmpPacket_EchoReply(recvPacket)
+                        icmpReplyPacket = IcmpHelperLibrary.IcmpPacket_EchoReply(recvPacket)
                         self.__validateIcmpReplyPacketWithOriginalPingData(icmpReplyPacket, True)
 
                         return False
